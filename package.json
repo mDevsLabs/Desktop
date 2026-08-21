@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "mAI — CLI, Web et Website dans une application multiplateforme.",
-  "author": "mAI",
+  "author": {
+    "name": "mAI",
+    "email": "mprojectsofficiel@gmail.com"
+  },
   "license": "MIT",
   "type": "module",
   "main": "build-electron/main.cjs",
@@ -12,8 +15,8 @@
     "dev:desktop": "concurrently -k \"vite --host 0.0.0.0\" \"wait-on http://localhost:5173 && npm run electron:compile && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "tsc --noEmit && vite build",
     "electron:compile": "node scripts/build-electron.mjs",
-    "build:desktop": "npm run build && npm run electron:compile && electron-builder",
-    "build:desktop:dir": "npm run build && npm run electron:compile && electron-builder --dir",
+    "build:desktop": "npm run build && npm run electron:compile && electron-builder --publish never",
+    "build:desktop:dir": "npm run build && npm run electron:compile && electron-builder --dir --publish never",
     "build:sync": "npm run build && cap sync",
     "build:android": "npm run cap:sync && cap open android",
     "build:ios": "npm run cap:sync && cap open ios",
@@ -53,6 +56,7 @@
     "appId": "com.mai.app",
     "productName": "mAI",
     "executableName": "mai",
+    "publish": null,
     "asar": true,
     "asarUnpack": [
       "node_modules/node-pty/**/*"
