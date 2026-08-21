@@ -1,0 +1,103 @@
+{
+  "name": "@mdevs/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "mAI — CLI, Web et Website dans une application multiplateforme.",
+  "author": "mAI",
+  "license": "MIT",
+  "type": "module",
+  "main": "build-electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "dev:desktop": "concurrently -k \"vite --host 0.0.0.0\" \"wait-on http://localhost:5173 && npm run electron:compile && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "build": "tsc --noEmit && vite build",
+    "electron:compile": "node scripts/build-electron.mjs",
+    "build:desktop": "npm run build && npm run electron:compile && electron-builder",
+    "build:desktop:dir": "npm run build && npm run electron:compile && electron-builder --dir",
+    "build:sync": "npm run build && cap sync",
+    "build:android": "npm run cap:sync && cap open android",
+    "build:ios": "npm run cap:sync && cap open ios",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-search": "^0.15.0",
+    "@xterm/xterm": "^5.5.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.9.0",
+    "vite": "^8.2.2",
+    "vitest": "^4.0.0",
+    "wait-on": "^9.0.0"
+  },
+  "build": {
+    "appId": "com.mai.app",
+    "productName": "mAI",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/node-pty/**/*"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*",
+      "build-electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "icon": "assets/icon.png",
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "synopsis": "mAI — CLI, Web et Website",
+      "description": "Super application mAI pour bureau",
+      "syncDesktopName": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "desktopName": "com.mai.app.desktop"
+}

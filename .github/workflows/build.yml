@@ -1,0 +1,152 @@
+name: Build mAI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: mai-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Qualité du code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run electron:compile
+
+  desktop:
+    name: Bureau — ${{ matrix.name }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installer les dépendances
+        run: npm ci
+      - name: Reconstruire les modules natifs pour Electron
+        run: npx electron-builder install-app-deps
+      - name: Compiler et empaqueter
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run build:desktop
+      - name: Publier les artefacts bureau
+        uses: actions/upload-artifact@v4
+        with:
+          name: mAI-desktop-${{ matrix.name }}-${{ github.sha }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  mobile:
+    name: Mobile — ${{ matrix.name }}
+    needs: desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Android
+            os: ubuntu-latest
+            platform: android
+          - name: iOS
+            os: macos-latest
+            platform: ios
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - name: Installer les dépendances
+        run: npm ci
+      - name: Compiler le Web et synchroniser Capacitor
+        run: npm run cap:sync
+      - name: Compiler Android
+        if: matrix.platform == 'android'
+        working-directory: android
+        run: ./gradlew assembleDebug bundleRelease --stacktrace
+      - name: Compiler la véritable application iOS (appareil + simulateur)
+        if: matrix.platform == 'ios'
+        working-directory: ios/App
+        run: |
+          set -euo pipefail
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build-simulator \
+            CODE_SIGNING_ALLOWED=NO
+          ditto -c -k --sequesterRsrc --keepParent \
+            build-simulator/Build/Products/Debug-iphonesimulator/App.app \
+            mAI-iOS-simulator.app.zip
+
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build-device \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          rm -rf Payload
+          mkdir Payload
+          cp -R build-device/Build/Products/Release-iphoneos/App.app Payload/mAI.app
+          zip -qry mAI-iOS-device-unsigned.ipa Payload
+          ditto -c -k --sequesterRsrc --keepParent \
+            build-device/Build/Products/Release-iphoneos/App.app \
+            mAI-iOS-device-unsigned.app.zip
+          rm -rf Payload
+      - name: Publier les artefacts Android
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mAI-mobile-Android-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publier l’artefact iOS
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mAI-mobile-iOS-${{ github.sha }}
+          path: |
+            ios/App/mAI-iOS-simulator.app.zip
+            ios/App/mAI-iOS-device-unsigned.ipa
+            ios/App/mAI-iOS-device-unsigned.app.zip
+          if-no-files-found: error
+          retention-days: 14
