@@ -1,24 +1,193 @@
-import { useCallback,useEffect,useRef,useState } from 'react';
-import { App as CapacitorApp } from '@capacitor/app';
-import logo from '../assets/icon.png';
-import { Home } from './components/Home';import { TerminalPanel } from './components/TerminalPanel';import { WebPanel } from './components/WebPanel';
-import { DownloadsPanel } from './components/DownloadsPanel';import { SettingsPanel,defaults,type Preferences } from './components/SettingsPanel';
-import { CloseIcon,GlobeIcon,HomeIcon,PlusIcon,SparkIcon,TerminalIcon,WindowIcon } from './components/Icons';import { SERVICES,type Tab,type TabKind } from './types';
-const desktop=Boolean(window.maiDesktop);const titleFor=(k:TabKind)=>k==='home'?'Accueil':SERVICES[k].title;const makeTab=(kind:TabKind):Tab=>({id:crypto.randomUUID(),kind,title:titleFor(kind)});
-const IconFor=({kind}:{kind:TabKind})=>kind==='home'?<HomeIcon/>:kind==='terminal'?<TerminalIcon/>:kind==='web'?<SparkIcon/>:<GlobeIcon/>;
-function loadPrefs():Preferences{try{return {...defaults,...JSON.parse(localStorage.getItem('mai.preferences')||'{}')}}catch{return defaults}}
-export default function App(){
- const first=useRef(makeTab('home')).current;const [tabs,setTabs]=useState<Tab[]>([first]),[activeId,setActiveId]=useState(first.id),[hydrated,setHydrated]=useState(!desktop);const [restoredIds,setRestoredIds]=useState<Set<string>>(new Set());const [settings,setSettings]=useState(false),[downloads,setDownloads]=useState(false),[prefs,setPrefs]=useState(loadPrefs),closed=useRef<Tab[]>([]);const drag=useRef<string | undefined>(undefined);
- const active=tabs.find(t=>t.id===activeId)||tabs[0];
- const open=useCallback((kind:TabKind,newWindow=false)=>{if(newWindow&&desktop){void window.maiDesktop!.newWindow(kind);return}const t=makeTab(kind);if(!desktop){setTabs([t]);setActiveId(t.id);return}setTabs(x=>[...x,t]);setActiveId(t.id)},[]);
- const close=useCallback((id:string)=>setTabs(old=>{const index=old.findIndex(t=>t.id===id),removed=old[index];if(removed)closed.current.unshift(removed);const next=old.filter(t=>t.id!==id);if(!next.length){const h=makeTab('home');setActiveId(h.id);return[h]}if(id===activeId)setActiveId(next[Math.min(index,next.length-1)].id);return next}),[activeId]);
- const rename=(id:string,title:string)=>setTabs(x=>x.map(t=>t.id===id?{...t,title}:t));const duplicate=(tab:Tab)=>{const t={...tab,id:crypto.randomUUID(),title:tab.kind==='terminal'?`${tab.title} copie`:tab.title};setTabs(x=>[...x,t]);setActiveId(t.id)};
- useEffect(()=>{if(!desktop)return;let live=true;void window.maiDesktop!.getWorkspace().then(s=>{if(!live)return;if(s?.tabs?.length){setTabs(s.tabs);setActiveId(s.tabs.some(t=>t.id===s.activeId)?s.activeId:s.tabs[0].id);setRestoredIds(new Set(s.tabs.filter(t=>t.kind==='terminal').map(t=>t.id)))}setHydrated(true)});return()=>{live=false}},[]);
- useEffect(()=>{if(desktop&&hydrated)window.maiDesktop!.saveWorkspace({id:new URLSearchParams(location.search).get('window')||'',tabs,activeId})},[tabs,activeId,hydrated]);
- useEffect(()=>{localStorage.setItem('mai.preferences',JSON.stringify(prefs));const system=matchMedia('(prefers-color-scheme: light)').matches;document.documentElement.dataset.theme=prefs.theme==='system'?(system?'light':'dark'):prefs.theme;document.documentElement.classList.toggle('reduced-motion',prefs.reducedMotion);if(desktop)window.maiDesktop!.setNotifications(prefs.notifications)},[prefs]);
- useEffect(()=>{if(!desktop)return;const a=window.maiDesktop!.onMenuNewTab(()=>open('home')),b=window.maiDesktop!.onMenuNewTerminal(()=>open('terminal')),c=window.maiDesktop!.onMenuCloseTab(()=>close(activeId));return()=>{a();b();c()}},[activeId,close,open]);
- useEffect(()=>{if(desktop)return;const l=CapacitorApp.addListener('backButton',()=>{if(active.kind!=='home')open('home');else void CapacitorApp.exitApp()});return()=>{void l.then(h=>h.remove())}},[active.kind,open]);
- const render=(tab:Tab)=>tab.kind==='home'?<Home desktop={desktop} open={open}/>:tab.kind==='terminal'?<TerminalPanel title={tab.title} onRename={v=>rename(tab.id,v)} onDuplicate={()=>duplicate(tab)} restored={restoredIds.has(tab.id)} restoreMode={prefs.restoreTerminals}/>:<WebPanel desktop={desktop} title={SERVICES[tab.kind].title} url={SERVICES[tab.kind].url}/>;
- if(!desktop)return <div className="app mobile-app"><header className="mobile-header"><img src={logo} alt=""/><strong>mAI</strong><button className="header-action" onClick={()=>setSettings(true)}>⚙</button></header><div className="mobile-content" key={active.id}>{render(active)}</div><nav className="mobile-nav">{(['home','web','website'] as TabKind[]).map(k=><button className={active.kind===k?'active':''} onClick={()=>open(k)} key={k}><IconFor kind={k}/><span>{k==='home'?'Accueil':k==='web'?'mAI Web':'Website'}</span></button>)}</nav>{settings&&<SettingsPanel value={prefs} onChange={setPrefs} onClose={()=>setSettings(false)}/>}</div>;
- return <div className="app desktop-app"><header className="titlebar"><div className="brand"><img src={logo} alt=""/><strong>mAI</strong></div><div className="tabs" role="tablist">{tabs.map(tab=><button draggable onDragStart={()=>drag.current=tab.id} onDragOver={e=>e.preventDefault()} onDrop={()=>{const from=drag.current;if(!from||from===tab.id)return;setTabs(x=>{const a=x.findIndex(t=>t.id===from),b=x.findIndex(t=>t.id===tab.id),n=[...x];const [m]=n.splice(a,1);n.splice(b,0,m);return n})}} role="tab" aria-selected={tab.id===activeId} className={`tab ${tab.id===activeId?'active':''}`} onClick={()=>setActiveId(tab.id)} key={tab.id}><IconFor kind={tab.kind}/><span>{tab.title}</span><i onClick={e=>{e.stopPropagation();close(tab.id)}}><CloseIcon/></i></button>)}<button className="new-tab" onClick={()=>open('home')} title="Nouvel onglet"><PlusIcon/></button></div><button className="new-window" onClick={()=>setDownloads(true)} title="Téléchargements">⇩</button><button className="new-window" onClick={()=>setSettings(true)} title="Paramètres">⚙</button><button className="new-window" onClick={()=>void window.maiDesktop!.newWindow()} title="Nouvelle fenêtre"><WindowIcon/></button></header><div className="desktop-content">{tabs.map(t=><div className={`tab-pane ${t.id===activeId?'active':''}`} key={t.id}>{render(t)}</div>)}</div>{settings&&<SettingsPanel value={prefs} onChange={setPrefs} onClose={()=>setSettings(false)}/>} {downloads&&<DownloadsPanel onClose={()=>setDownloads(false)}/>}</div>;
+import { useCallback, useEffect, useState } from 'react';
+import { Home } from './components/Home';
+import { TerminalPanel } from './components/TerminalPanel';
+import { WebPanel } from './components/WebPanel';
+import { DownloadsPanel } from './components/DownloadsPanel';
+import { SettingsPanel } from './components/SettingsPanel';
+import { Titlebar } from './components/Titlebar';
+import { MobileShell } from './components/MobileShell';
+import { CommandPalette } from './components/CommandPalette';
+import { SERVICES, type Tab } from './types';
+import { useAccount } from './services/account';
+import { useTabs } from './hooks/useTabs';
+import { usePreferences } from './hooks/usePreferences';
+import { useWorkspace } from './hooks/useWorkspace';
+import { useDesktopMenu } from './hooks/useDesktopMenu';
+import { useMobileBack } from './hooks/useMobileBack';
+
+const isDesktop = Boolean(window.maiDesktop);
+
+export default function App() {
+  const { tabs, setTabs, activeId, setActiveId, active, open, close, rename, duplicate, moveTab } =
+    useTabs();
+  const [prefs, setPrefs] = usePreferences();
+  const { hydrated, restoredIds } = useWorkspace({
+    tabs,
+    setTabs,
+    activeId,
+    setActiveId,
+    enabled: isDesktop,
+  });
+
+  const [settings, setSettings] = useState(false);
+  const [downloads, setDownloads] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const account = useAccount();
+
+  useDesktopMenu({ enabled: isDesktop, open, close, activeId, tabs, setActiveId });
+  useMobileBack({
+    enabled: isDesktop,
+    activeKind: active.kind,
+    openHome: useCallback(() => open('home'), [open]),
+  });
+
+  // Global search Cmd+K / Ctrl+K
+  const handlePaletteSelect = useCallback(
+    (tabId: string) => {
+      setActiveId(tabId);
+      setPaletteOpen(false);
+    },
+    [setActiveId]
+  );
+
+  const handlePaletteOpenTerminalSearch = useCallback(() => {
+    // Focus terminal search - handled via event
+    window.dispatchEvent(new CustomEvent('mai:focus-terminal-search'));
+    setPaletteOpen(false);
+  }, []);
+
+  const render = useCallback(
+    (tab: Tab) => {
+      if (tab.kind === 'home') return <Home desktop={isDesktop} open={open} />;
+      if (tab.kind === 'terminal') {
+        return (
+          <TerminalPanel
+            title={tab.title}
+            onRename={(v) => rename(tab.id, v)}
+            onDuplicate={() => duplicate(tab)}
+            restored={restoredIds.has(tab.id)}
+            restoreMode={prefs.restoreTerminals}
+            cliShell={prefs.cliShell}
+          />
+        );
+      }
+      return (
+        <WebPanel
+          desktop={isDesktop}
+          title={SERVICES[tab.kind].title}
+          url={SERVICES[tab.kind].url}
+        />
+      );
+    },
+    [open, rename, duplicate, restoredIds, prefs.restoreTerminals, prefs.cliShell]
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    const onOpen = () => setPaletteOpen(true);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mai:open-palette' as never, onOpen as never);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mai:open-palette' as never, onOpen as never);
+    };
+  }, []);
+
+  if (!isDesktop) {
+    return (
+      <>
+        <MobileShell
+          activeKind={active.kind}
+          onOpen={open}
+          account={account.account}
+          onOpenSettings={() => setSettings(true)}
+        >
+          <div key={active.id} style={{ height: '100%' }}>
+            {render(active)}
+          </div>
+        </MobileShell>
+        {settings && (
+          <SettingsPanel
+            value={prefs}
+            onChange={setPrefs}
+            onClose={() => setSettings(false)}
+            account={account}
+          />
+        )}
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          tabs={tabs}
+          activeId={activeId}
+          onSelect={handlePaletteSelect}
+          onSearchTerminal={handlePaletteOpenTerminalSearch}
+        />
+      </>
+    );
+  }
+
+  // Desktop: gate on hydrated to avoid flash of empty workspace
+  if (!hydrated) {
+    return (
+      <div className="app desktop-app">
+        <div className="center-state">
+          <div className="loader" />
+          <h2>Chargement de l’espace de travail…</h2>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app desktop-app">
+      <Titlebar
+        tabs={tabs}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onClose={close}
+        onNewTab={() => open('home')}
+        onMove={moveTab}
+        account={account.account}
+        onOpenSettings={() => setSettings(true)}
+        onOpenDownloads={() => setDownloads(true)}
+      />
+
+      <div className="desktop-content">
+        {tabs.map((t) => (
+          <div
+            key={t.id}
+            className={`tab-pane ${t.id === activeId ? 'active' : ''}`}
+            role="tabpanel"
+            aria-hidden={t.id !== activeId}
+          >
+            {render(t)}
+          </div>
+        ))}
+      </div>
+
+      {settings && (
+        <SettingsPanel
+          value={prefs}
+          onChange={setPrefs}
+          onClose={() => setSettings(false)}
+          account={account}
+        />
+      )}
+      {downloads && <DownloadsPanel onClose={() => setDownloads(false)} />}
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        tabs={tabs}
+        activeId={activeId}
+        onSelect={handlePaletteSelect}
+        onSearchTerminal={handlePaletteOpenTerminalSearch}
+      />
+    </div>
+  );
 }

@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
@@ -21,10 +21,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json', 'pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-electron-
       - run: npm ci
       - run: npm run lint
       - run: npm test
@@ -47,17 +59,33 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json', 'pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-electron-
       - name: Installer les dépendances
         run: npm ci
       - name: Reconstruire les modules natifs pour Electron
         run: npx electron-builder install-app-deps
-      - name: Compiler et empaqueter
+      - name: Compiler et empaqueter (PR — sans publication)
+        if: github.event_name == 'pull_request'
+        run: npm run build:desktop -- --publish never
+      - name: Compiler et empaqueter (release)
+        if: github.event_name != 'pull_request'
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:desktop
       - name: Publier les artefacts bureau
@@ -70,12 +98,13 @@ jobs:
             release/*.exe
             release/*.dmg
             release/*.zip
+            release/*.yml
           if-no-files-found: error
           retention-days: 14
 
   mobile:
     name: Mobile — ${{ matrix.name }}
-    needs: desktop
+    needs: quality
     strategy:
       fail-fast: false
       matrix:
@@ -89,10 +118,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Cache Gradle
+        if: matrix.platform == 'android'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/app/build.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle-
       - if: matrix.platform == 'android'
         uses: actions/setup-java@v4
         with:

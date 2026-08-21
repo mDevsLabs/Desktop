@@ -6,6 +6,6 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   backgroundColor: '#07090f',
   ios: { contentInset: 'automatic', scrollEnabled: true },
-  android: { backgroundColor: '#07090f', allowMixedContent: false }
+  android: { backgroundColor: '#07090f', allowMixedContent: false },
 };
 export default config;

@@ -1,13 +1,30 @@
+import {
+  AppWindow,
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Globe,
+  Home,
+  Lock,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Terminal,
+  X,
+} from 'lucide-react';
 import type { SVGProps } from 'react';
-const I = ({ children, ...p }: SVGProps<SVGSVGElement>) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...p}>{children}</svg>;
-export const TerminalIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="m5 7 4.5 5L5 17M12 17h7"/></I>;
-export const GlobeIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.4 3 14.6 0 18M12 3c-3 3.4-3 14.6 0 18"/></I>;
-export const SparkIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="m12 3 1.3 4.1L17 9l-3.7 1.9L12 15l-1.3-4.1L7 9l3.7-1.9L12 3ZM18.5 15l.7 2.2 1.8.8-1.8.8-.7 2.2-.7-2.2L16 18l1.8-.8.7-2.2Z"/></I>;
-export const PlusIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M12 5v14M5 12h14"/></I>;
-export const BackIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="m15 18-6-6 6-6"/></I>;
-export const ForwardIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="m9 18 6-6-6-6"/></I>;
-export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M14 5h5v5M19 5l-8 8M18 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></I>;
-export const RefreshIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M20 7v5h-5M4 17v-5h5M6.1 8A7 7 0 0 1 18 6l2 6M18 16a7 7 0 0 1-11.9 2L4 12"/></I>;
-export const WindowIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><rect x="4" y="6" width="14" height="13" rx="2"/><path d="M8 6V4h12v12h-2"/></I>;
-export const CloseIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="m7 7 10 10M17 7 7 17"/></I>;
-export const HomeIcon = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="m3 11 9-8 9 8M5 10v10h14V10M9 20v-6h6v6"/></I>;
+
+type IconProps = SVGProps<SVGSVGElement>;
+
+export const TerminalIcon = (p: IconProps) => <Terminal {...p} />;
+export const GlobeIcon = (p: IconProps) => <Globe {...p} />;
+export const SparkIcon = (p: IconProps) => <Sparkles {...p} />;
+export const PlusIcon = (p: IconProps) => <Plus {...p} />;
+export const BackIcon = (p: IconProps) => <ArrowLeft {...p} />;
+export const ForwardIcon = (p: IconProps) => <ArrowRight {...p} />;
+export const ExternalIcon = (p: IconProps) => <ExternalLink {...p} />;
+export const RefreshIcon = (p: IconProps) => <RefreshCw {...p} />;
+export const WindowIcon = (p: IconProps) => <AppWindow {...p} />;
+export const CloseIcon = (p: IconProps) => <X {...p} />;
+export const HomeIcon = (p: IconProps) => <Home {...p} />;
+export const LockIcon = (p: IconProps) => <Lock {...p} />;
