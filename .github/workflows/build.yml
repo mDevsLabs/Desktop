@@ -106,7 +106,9 @@ jobs:
       - name: Compiler Android
         if: matrix.platform == 'android'
         working-directory: android
-        run: ./gradlew assembleDebug bundleRelease --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug bundleRelease --stacktrace
       - name: Compiler la véritable application iOS (appareil + simulateur)
         if: matrix.platform == 'ios'
         working-directory: ios/App
