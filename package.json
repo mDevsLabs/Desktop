@@ -1,5 +1,5 @@
 {
-  "name": "@mdevs/desktop",
+  "name": "mai-desktop",
   "version": "0.5.0",
   "private": true,
   "description": "mAI — CLI, Web et Website dans une application multiplateforme.",
@@ -117,7 +117,13 @@
       "synopsis": "mAI — CLI, Web et Website",
       "description": "Super application mAI pour bureau",
       "syncDesktopName": true,
-      "executableName": "mai"
+      "executableName": "mai",
+      "packageName": "mai",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "deb": {
+      "packageName": "mai",
+      "artifactName": "mai_${version}_${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
