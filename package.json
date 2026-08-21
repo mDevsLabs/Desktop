@@ -1,5 +1,5 @@
 {
-  "name": "@mdevs/desktop",
+  "name": "mai-desktop",
   "version": "0.1.0",
   "private": true,
   "description": "mAI — CLI, Web et Website dans une application multiplateforme.",
@@ -52,6 +52,7 @@
   "build": {
     "appId": "com.mai.app",
     "productName": "mAI",
+    "executableName": "mai",
     "asar": true,
     "asarUnpack": [
       "node_modules/node-pty/**/*"
@@ -89,7 +90,8 @@
       "category": "Utility",
       "synopsis": "mAI — CLI, Web et Website",
       "description": "Super application mAI pour bureau",
-      "syncDesktopName": true
+      "syncDesktopName": true,
+      "executableName": "mai"
     },
     "nsis": {
       "oneClick": false,
