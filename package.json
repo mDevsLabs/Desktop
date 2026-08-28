@@ -116,10 +116,8 @@
       "category": "Utility",
       "synopsis": "mAI — CLI, Web et Website",
       "description": "Super application mAI pour bureau",
-      "syncDesktopName": true,
       "executableName": "mai",
-      "packageName": "mai",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "mai-${version}-${arch}.${ext}"
     },
     "deb": {
       "packageName": "mai",

@@ -1,4 +1,13 @@
-import nodemailer from 'npm:nodemailer';
+import nodemailer from "npm:nodemailer";
+
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export async function sendVerificationEmail(
   email: string,
@@ -6,48 +15,64 @@ export async function sendVerificationEmail(
   action: string,
   extraInfo?: any
 ) {
-  console.log(`🔑 [CODE/ALERT] (${action}) pour ${email} : ${code || 'Aucun (Alerte)'}`);
+  // Log du code pour développement / debugging
+  const maskedEmail = email.replace(/(.{2}).*(@.*)/, "$1***$2");
+  console.log(
+    `[EMAIL] action=${action} to=${maskedEmail} hasCode=${Boolean(code)} code=${code}`
+  );
 
-  let subject = 'Notification - mAI';
-  let title = 'Notification';
-  let textContent = '';
-  let showCode = !code ? false : true;
+  let subject = "Notification - mAI";
+  let title = "Notification";
+  let textContent = "";
+  let showCode = code ? true : false;
 
   switch (action) {
-    case 'register':
-      subject = 'Vérifiez votre adresse e-mail - mAI';
+    case "register":
+      subject = "Vérifiez votre adresse e-mail - mAI";
       title = "Vérification d'inscription";
       textContent =
-        'Voici votre code de vérification à 6 chiffres pour votre compte <strong>mAI</strong> :';
+        "Voici votre code de vérification à 6 chiffres pour votre compte <strong>mAI</strong> :";
       break;
-    case 'login':
-      subject = 'Code de vérification de connexion - mAI';
-      title = 'Vérification de connexion';
+    case "login":
+      subject = "Code de vérification de connexion - mAI";
+      title = "Vérification de connexion";
       textContent =
-        'Voici votre code de vérification à 6 chiffres pour votre compte <strong>mAI</strong> :';
+        "Voici votre code de vérification à 6 chiffres pour votre compte <strong>mAI</strong> :";
       break;
-    case 'verify_new_email':
-      subject = 'Vérification de votre nouvelle adresse e-mail - mAI';
+    case "verify_new_email":
+      subject = "Vérification de votre nouvelle adresse e-mail - mAI";
       title = "Changement d'e-mail";
-      textContent = 'Voici le code de vérification pour confirmer votre nouvelle adresse e-mail :';
-      break;
-    case 'delete_account':
-      subject = 'Code de suppression de compte - mAI';
-      title = 'Suppression du compte';
       textContent =
-        'Vous avez demandé la suppression de votre compte. Voici votre code à 8 chiffres :';
+        "Voici le code de vérification pour confirmer votre nouvelle adresse e-mail :";
       break;
-    case 'new_login':
-      subject = 'Nouvelle connexion détectée - mAI';
-      title = 'Alerte de sécurité';
+    case "delete_account":
+      subject = "Code de suppression de compte - mAI";
+      title = "Suppression du compte";
+      textContent =
+        "Vous avez demandé la suppression de votre compte. Voici votre code à 8 chiffres :";
+      break;
+    case "subscription_unlocked": {
+      const tierUnlocked = escapeHtml(extraInfo?.tier || "Pro");
+      subject = `Merci d'avoir souscrit au forfait ${tierUnlocked} ! - mAI`;
+      title = `Merci d'avoir souscrit au forfait ${tierUnlocked} !`;
       showCode = false;
-      const device = extraInfo?.device || 'Appareil inconnu';
-      const location = extraInfo?.location || 'Lieu inconnu';
+      textContent = `Nous vous remercions chaleureusement pour votre souscription au forfait <strong>${tierUnlocked}</strong> sur <strong>mAI</strong> !<br><br>
+        Votre compte bénéficie dès maintenant de vos nouveaux quotas étendus pour l'ensemble de vos applications et clés d'API (tokens mAI, requêtes API et stockage Cloud).<br><br>
+        Toute l'équipe mDevsLabs vous remercie pour votre confiance et vous souhaite une excellente expérience créative et productive avec mAI.`;
+      break;
+    }
+    case "new_login": {
+      subject = "Nouvelle connexion détectée - mAI";
+      title = "Alerte de sécurité";
+      showCode = false;
+      const device = escapeHtml(extraInfo?.device || "Appareil inconnu");
+      const location = escapeHtml(extraInfo?.location || "Lieu inconnu");
       textContent = `Une nouvelle connexion à votre compte <strong>mAI</strong> a été détectée depuis :<br><br>
         <strong>Appareil :</strong> ${device}<br>
         <strong>Localisation :</strong> ${location}<br><br>
         Si vous êtes à l'origine de cette connexion, aucune action n'est requise. Sinon, modifiez immédiatement votre mot de passe et déconnectez cet appareil.`;
       break;
+    }
   }
 
   const html = `
@@ -77,12 +102,12 @@ export async function sendVerificationEmail(
           <!-- Styled Code Container -->
           <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; text-align:center; margin:28px 0;">
             <div style="font-size:34px; font-weight:800; letter-spacing:8px; color:#a855f7; font-family:Consolas, Monaco, monospace; margin-bottom:12px; user-select:all;">
-              ${code}
+              ${escapeHtml(code)}
             </div>
             <p style="font-size:12px; color:#94a3b8; margin:0;">Code unique • Expire dans 10 minutes</p>
           </div>
           `
-              : ''
+              : ""
           }
 
           <p style="font-size:13px; color:#94a3b8; margin-top:28px;">Si vous n'êtes pas à l'origine de cette demande, vous pouvez l'ignorer ou sécuriser votre compte.</p>
@@ -99,18 +124,59 @@ export async function sendVerificationEmail(
     </html>
   `;
 
-  // 1. Gmail SMTP via Nodemailer
-  const gmailUser = Deno.env.get('GMAIL_USER') || 'tusseaumathias85@gmail.com';
-  const gmailAppPass = Deno.env.get('GMAIL_APP_PASSWORD');
+  // 1. Envoi via Google Apps Script (Recommandé)
+  const googleScriptsUrl = Deno.env.get("GOOGLE_SCRIPTS_URL") || Deno.env.get("GOOGLE_SCRIPT_URL");
+  const googleScriptSecret = Deno.env.get("GOOGLE_SCRIPTS_SECRET") || Deno.env.get("GOOGLE_SCRIPT_SECRET");
 
-  if (gmailAppPass) {
+  if (googleScriptsUrl && googleScriptSecret) {
+    try {
+      const res = await fetch(googleScriptsUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          secret: googleScriptSecret,
+          to: email,
+          subject: subject,
+          htmlBody: html,
+          body: "Veuillez activer l'affichage HTML pour lire cet e-mail mAI.",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          const maskedTo = email.replace(/(.{2}).*(@.*)/, "$1***$2");
+          console.log(`[EMAIL] Google Apps Script OK to=${maskedTo}`);
+          return;
+        } else {
+          console.error("Erreur de retour Google Apps Script :", data.error);
+        }
+      } else {
+        console.error("Erreur HTTP Google Apps Script :", res.status, res.statusText);
+      }
+    } catch (err: any) {
+      console.error("Erreur envoi via Google Apps Script :", err?.message || err);
+    }
+  } else {
+    console.warn(
+      "[EMAIL] GOOGLE_SCRIPTS_URL/GOOGLE_SCRIPT_SECRET non configurés — fallback SMTP"
+    );
+  }
+
+  // 2. Fallback Gmail SMTP via Nodemailer
+  const gmailUser = Deno.env.get("GMAIL_USER");
+  const gmailAppPass = Deno.env.get("GMAIL_APP_PASSWORD");
+
+  if (gmailUser && gmailAppPass) {
     try {
       const transporter = nodemailer.createTransport({
         auth: {
           pass: gmailAppPass,
           user: gmailUser,
         },
-        service: 'gmail',
+        service: "gmail",
       });
 
       await transporter.sendMail({
@@ -120,34 +186,15 @@ export async function sendVerificationEmail(
         to: email,
       });
 
-      console.log(`✉️ E-mail envoyé avec succès via Gmail SMTP à ${email}`);
+      const maskedTo = email.replace(/(.{2}).*(@.*)/, "$1***$2");
+      console.log(`[EMAIL] Gmail SMTP OK to=${maskedTo}`);
       return;
     } catch (err: any) {
-      console.error("❌ Erreur d'envoi Gmail SMTP :", err?.message || err);
+      console.error("Erreur envoi Gmail SMTP :", err?.message || err);
     }
-  }
-
-  // 2. Resend Fallback
-  const resendKey = Deno.env.get('RESEND_API_KEY');
-  if (resendKey) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        body: JSON.stringify({
-          from: 'mAI <onboarding@resend.dev>',
-          html,
-          subject,
-          to: email,
-        }),
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-      });
-      if (res.ok) {
-      }
-    } catch (_e) {
-      // ignore
-    }
+  } else {
+    console.warn(
+      "[EMAIL] GMAIL_USER/GMAIL_APP_PASSWORD non configurés — aucun moyen d'envoi disponible"
+    );
   }
 }
