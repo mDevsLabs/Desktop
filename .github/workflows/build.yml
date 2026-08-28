@@ -220,7 +220,7 @@ jobs:
         with:
           path: release-assets
           pattern: mAI-*-*
-          merge-multiple: true
+          merge-multiple: false
       - name: Créer ou mettre à jour la release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -237,12 +237,19 @@ jobs:
               -f "sha=$GITHUB_SHA"
           fi
 
+          # download-artifact recrée un dossier par artefact ; gh ne doit recevoir que des fichiers.
+          mapfile -t ASSETS < <(find release-assets -type f -print)
+          if [ "${#ASSETS[@]}" -eq 0 ]; then
+            echo "Aucun fichier compilé trouvé dans release-assets" >&2
+            exit 1
+          fi
+
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" release-assets/* \
+            gh release upload "$TAG" "${ASSETS[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
           else
-            gh release create "$TAG" release-assets/* \
+            gh release create "$TAG" "${ASSETS[@]}" \
               --repo "$GITHUB_REPOSITORY" \
               --title "mAI $VERSION" \
               --generate-notes
