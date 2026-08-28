@@ -43,9 +43,22 @@ jobs:
       - run: npm run build
       - run: npm run electron:compile
 
+  version:
+    name: Lire la version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+      tag: v${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: package
+        name: Lire la version depuis package.json
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
   desktop:
     name: Bureau — ${{ matrix.name }}
-    needs: quality
+    needs: [quality, version]
     strategy:
       fail-fast: false
       matrix:
@@ -104,7 +117,7 @@ jobs:
 
   mobile:
     name: Mobile — ${{ matrix.name }}
-    needs: quality
+    needs: [quality, version]
     strategy:
       fail-fast: false
       matrix:
@@ -196,3 +209,32 @@ jobs:
             ios/App/mAI-iOS-device-unsigned.app.zip
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    name: Créer la release GitHub
+    needs: [version, desktop, mobile]
+    if: github.event_name != 'pull_request' && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: mAI-*-*
+          merge-multiple: true
+      - name: Créer ou mettre à jour la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "mAI $VERSION" \
+            --generate-notes \
+            --target "$GITHUB_SHA" \
+            2>/dev/null || \
+          gh release upload "$TAG" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
