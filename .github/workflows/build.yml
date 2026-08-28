@@ -244,6 +244,17 @@ jobs:
             exit 1
           fi
 
+          # Plusieurs runners produisent des fichiers portant le même nom
+          # (notamment builder-debug.yml). Préfixer chaque fichier avec son
+          # artefact source évite les collisions dans une release GitHub.
+          while IFS= read -r -d '' asset; do
+            artifact_dir=$(basename "$(dirname "$asset")")
+            filename=$(basename "$asset")
+            safe_artifact_dir=$(printf '%s' "$artifact_dir" | tr -c '[:alnum:]._-' '-')
+            mv "$asset" "$(dirname "$asset")/${safe_artifact_dir}-${filename}"
+          done < <(find release-assets -type f -print0)
+          mapfile -t ASSETS < <(find release-assets -type f -print)
+
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" \
               --repo "$GITHUB_REPOSITORY" \
