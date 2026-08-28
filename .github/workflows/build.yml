@@ -229,12 +229,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$TAG" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "mAI $VERSION" \
-            --generate-notes \
-            --target "$GITHUB_SHA" \
-            2>/dev/null || \
-          gh release upload "$TAG" release-assets/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+
+          # Le tag doit exister avant la création de la release.
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$TAG" \
+              -f "sha=$GITHUB_SHA"
+          fi
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$TAG" release-assets/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "mAI $VERSION" \
+              --generate-notes
+          fi
