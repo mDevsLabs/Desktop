@@ -30,6 +30,8 @@ export function TerminalPanel({
   const terminalId = useRef<string | undefined>(undefined);
   const terminal = useRef<Terminal | undefined>(undefined);
   const search = useRef<SearchAddon | undefined>(undefined);
+  const fit = useRef<FitAddon | undefined>(undefined);
+  const fontSizeRef = useRef(14);
 
   const [status, setStatus] = useState<Status>('checking');
   const [installing, setInstalling] = useState(false);
@@ -80,7 +82,7 @@ export function TerminalPanel({
 
     const term = new Terminal({
       cursorBlink: true,
-      fontSize,
+      fontSize: fontSizeRef.current,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
       scrollback: 10000,
       theme: {
@@ -92,14 +94,15 @@ export function TerminalPanel({
         brightBlack: '#667085',
       },
     });
-    const fit = new FitAddon();
+    const fitAddon = new FitAddon();
     const find = new SearchAddon();
-    term.loadAddon(fit);
+    term.loadAddon(fitAddon);
     term.loadAddon(find);
     term.open(host.current);
     terminal.current = term;
     search.current = find;
-    fit.fit();
+    fit.current = fitAddon;
+    fitAddon.fit();
     term.focus();
 
     const id = crypto.randomUUID();
@@ -126,7 +129,7 @@ export function TerminalPanel({
 
     const resize = new ResizeObserver(() => {
       try {
-        fit.fit();
+        fitAddon.fit();
         window.maiDesktop!.resizeTerminal(id, term.cols, term.rows);
       } catch {
         // ignore
@@ -137,7 +140,7 @@ export function TerminalPanel({
     const onVisible = () =>
       setTimeout(() => {
         try {
-          fit.fit();
+          fitAddon.fit();
           term.focus();
         } catch {
           // ignore
@@ -158,9 +161,10 @@ export function TerminalPanel({
       terminalId.current = undefined;
       terminal.current = undefined;
       search.current = undefined;
+      fit.current = undefined;
       term.dispose();
     };
-  }, [status, installing, shell, fontSize]);
+  }, [status, installing, shell]);
 
   const updateCli = async () => {
     if (!window.maiDesktop) return;
@@ -177,7 +181,18 @@ export function TerminalPanel({
   };
 
   useEffect(() => {
-    if (terminal.current?.options) terminal.current.options.fontSize = fontSize;
+    fontSizeRef.current = fontSize;
+    const term = terminal.current;
+    if (!term) return;
+    term.options.fontSize = fontSize;
+    try {
+      fit.current?.fit();
+      if (terminalId.current) {
+        window.maiDesktop?.resizeTerminal(terminalId.current, term.cols, term.rows);
+      }
+    } catch {
+      // ignore
+    }
   }, [fontSize]);
 
   useEffect(() => {

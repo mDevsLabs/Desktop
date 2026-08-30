@@ -16,5 +16,11 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.{ts,tsx}'],
     css: true,
+    // Pool « forks » trop lent à démarrer sous Windows ; « threads »
+    // fonctionne partout et garde jsdom en parallèle sous Linux/CI.
+    pool: 'threads',
+    // Sous Windows, le démarrage concurrent de 4 workers jsdom dépasse le
+    // timeout interne de 60 s de vitest (non configurable) → fichiers séquentiels.
+    ...(process.platform === 'win32' ? { fileParallelism: false } : {}),
   },
 });

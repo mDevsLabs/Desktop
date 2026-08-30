@@ -39,23 +39,21 @@ export function useTabs() {
 
   const close = useCallback(
     (id: string) => {
-      setTabs((old) => {
-        const index = old.findIndex((t) => t.id === id);
-        const next = old.filter((t) => t.id !== id);
-        if (!next.length) {
-          const h = makeTab('home');
-          setActiveId(h.id);
-          return [h];
-        }
-        if (id === activeId) {
-          const fallbackIndex = Math.min(index, next.length - 1);
-          const fallback = next[fallbackIndex];
-          if (fallback) setActiveId(fallback.id);
-        }
-        return next;
-      });
+      const index = tabs.findIndex((t) => t.id === id);
+      const next = tabs.filter((t) => t.id !== id);
+      if (!next.length) {
+        const h = makeTab('home');
+        setTabs([h]);
+        setActiveId(h.id);
+        return;
+      }
+      setTabs(next);
+      if (id === activeId) {
+        const fallback = next[Math.min(index, next.length - 1)];
+        if (fallback) setActiveId(fallback.id);
+      }
     },
-    [activeId]
+    [tabs, activeId]
   );
 
   const rename = useCallback((id: string, title: string) => {
