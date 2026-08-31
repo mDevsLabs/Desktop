@@ -207,15 +207,11 @@ export function useAccount(): AccountApi {
   }, []);
 
   const refresh = useCallback(async () => {
-    setAccount((prev) => {
-      if (!prev) return prev;
-      void buildAccount(prev.token, prev.email, prev.username).then((acc) => {
-        save(acc);
-        setAccount(acc);
-      });
-      return prev;
-    });
-  }, []);
+    if (!account) return;
+    const acc = await buildAccount(account.token, account.email, account.username);
+    save(acc);
+    setAccount(acc);
+  }, [account]);
 
   return {
     account,
